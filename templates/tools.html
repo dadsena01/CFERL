@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Tools — Lab Tools{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0"><i class="bi bi-box-seam me-2"></i>Tools</h2>
+  {% if current_user and current_user.role == 'admin' %}
+  <a href="{{ url_for('tool_new') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Add Tool
+  </a>
+  {% endif %}
+</div>
+
+<form method="GET" class="row g-2 mb-3">
+  <div class="col-12 col-md-5">
+    <input type="text" name="q" class="form-control" placeholder="Search name, tag or location…" value="{{ q }}">
+  </div>
+  <div class="col-6 col-md-3">
+    <select name="category" class="form-select">
+      <option value="">All Categories</option>
+      {% for c in categories %}
+      <option value="{{ c.id }}" {% if cat_filter|string == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-3">
+    <select name="condition" class="form-select">
+      <option value="">All Conditions</option>
+      {% for cond in ['New', 'Good', 'Fair', 'Needs Repair', 'Broken'] %}
+      <option value="{{ cond }}" {% if cond_filter == cond %}selected{% endif %}>{{ cond }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+    <a href="{{ url_for('tool_list') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
+  </div>
+  <div class="col-auto ms-auto">
+    <a href="{{ url_for('tool_export') }}" class="btn btn-outline-success">
+      <i class="bi bi-download me-1"></i>CSV
+    </a>
+  </div>
+</form>
+
+{% if tools %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Asset Tag</th>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Qty</th>
+        <th>Location</th>
+        <th>Condition</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tools %}
+      <tr>
+        <td><code>{{ t.asset_tag }}</code></td>
+        <td><a href="{{ url_for('tool_detail', tid=t.id) }}" class="text-decoration-none fw-medium">{{ t.name }}</a></td>
+        <td>{{ t.category_name or '—' }}</td>
+        <td>{{ t.quantity }}</td>
+        <td>{{ t.location or '—' }}</td>
+        <td>
+          {% set badge = {'New': 'success', 'Good': 'primary', 'Fair': 'warning', 'Needs Repair': 'warning', 'Broken': 'danger'} %}
+          <span class="badge bg-{{ badge.get(t.condition, 'secondary') }}">{{ t.condition }}</span>
+        </td>
+        <td>
+          {% if t.id in checked_out_ids %}
+          <span class="badge bg-warning text-dark">Checked Out</span>
+          {% else %}
+          <span class="badge bg-success">Available</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('tool_detail', tid=t.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-box-seam display-4"></i>
+  <p class="mt-2">No tools found.
+    {% if current_user and current_user.role == 'admin' %}
+    <a href="{{ url_for('tool_new') }}">Add your first tool</a>.
+    {% endif %}
+  </p>
+</div>
+{% endif %}
+
+{% endblock %}

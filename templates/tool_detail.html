@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} — Lab Tools{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="mb-1">{{ tool.name }}</h2>
+    <span class="text-muted"><code>{{ tool.asset_tag }}</code></span>
+  </div>
+  <div>
+    {% if current_user and current_user.role == 'admin' %}
+    <a href="{{ url_for('tool_edit', tid=tool.id) }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Edit
+    </a>
+    <form method="POST" action="{{ url_for('tool_delete', tid=tool.id) }}" class="d-inline"
+          onsubmit="return confirm('Delete this tool? This cannot be undone.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Delete</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-sm-4"><strong>Category</strong><br>{{ tool.category_name or '—' }}</div>
+          <div class="col-sm-4"><strong>Quantity</strong><br>{{ tool.quantity }}</div>
+          <div class="col-sm-4"><strong>Location</strong><br>{{ tool.location or '—' }}</div>
+          <div class="col-sm-4">
+            <strong>Condition</strong><br>
+            {% set badge = {'New': 'success', 'Good': 'primary', 'Fair': 'warning', 'Needs Repair': 'warning', 'Broken': 'danger'} %}
+            <span class="badge bg-{{ badge.get(tool.condition, 'secondary') }} fs-6">{{ tool.condition }}</span>
+          </div>
+          <div class="col-sm-4">
+            <strong>Status</strong><br>
+            {% if is_checked_out %}
+            <span class="badge bg-warning text-dark fs-6">Checked Out</span>
+            {% else %}
+            <span class="badge bg-success fs-6">Available</span>
+            {% endif %}
+          </div>
+          <div class="col-12"><hr></div>
+          {% if tool.description %}
+          <div class="col-12"><strong>Description</strong><br>{{ tool.description }}</div>
+          {% endif %}
+          <div class="col-sm-4"><strong>Vendor</strong><br>{{ tool.vendor or '—' }}</div>
+          <div class="col-sm-4"><strong>Purchase Date</strong><br>{{ tool.purchase_date or '—' }}</div>
+          <div class="col-sm-4"><strong>Purchase Price</strong><br>{{ '₹%.2f'|format(tool.purchase_price) if tool.purchase_price is not none and tool.purchase_price != '' else '—' }}</div>
+        </div>
+
+        {% if tool.photo %}
+        <div class="mt-3">
+          <strong>Photo</strong><br>
+          <img src="{{ url_for('uploaded_file', filename=tool.photo) }}" class="img-thumbnail mt-1" style="max-height: 250px;">
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body text-center">
+        <h6 class="card-title fw-semibold">QR Code</h6>
+        <img src="{{ url_for('tool_qr', tid=tool.id) }}" alt="QR" class="img-fluid" style="max-width: 180px;">
+        <p class="small text-muted mt-2 mb-0">Scan to open tool detail</p>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="card-title fw-semibold">
+          {% if is_checked_out %}
+          ↩ Return Tool
+          {% else %}
+          ↪ Check Out Tool
+          {% endif %}
+        </h6>
+
+        {% if not is_checked_out %}
+        <form method="POST" action="{{ url_for('tool_checkout', tid=tool.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="text" name="borrower_name" class="form-control form-control-sm mb-2" placeholder="Borrower name" required>
+          <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Notes (optional)">
+          <button class="btn btn-warning btn-sm w-100"><i class="bi bi-box-arrow-right me-1"></i>Check Out</button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('tool_return', tid=tool.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-success btn-sm w-100"><i class="bi bi-box-arrow-left me-1"></i>Return</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if logs %}
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-white fw-semibold">
+    <i class="bi bi-clock-history me-1"></i>Checkout History
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Borrower</th>
+          <th>Checked Out</th>
+          <th>Returned</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>{{ log.borrower_name }}</td>
+          <td>{{ log.checkout_date[:16] }}</td>
+          <td>
+            {% if log.return_date %}
+            {{ log.return_date[:16] }}
+            {% else %}
+            <span class="badge bg-warning text-dark">Active</span>
+            {% endif %}
+          </td>
+          <td>{{ log.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

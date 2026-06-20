@@ -1,0 +1,74 @@
+body {
+  background: #f5f6fa;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
+}
+
+.navbar-brand {
+  letter-spacing: -0.3px;
+}
+
+.card {
+  border-radius: 12px;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.badge {
+  font-weight: 500;
+}
+
+.btn {
+  border-radius: 8px;
+}
+
+.form-control,
+.form-select {
+  border-radius: 8px;
+  border-color: #dee2e6;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
+}
+
+#reader {
+  border-radius: 12px !important;
+  border: 2px dashed #dee2e6 !important;
+}
+
+#reader video {
+  border-radius: 10px;
+}
+
+a {
+  color: #0d6efd;
+}
+
+.list-group-item {
+  border-left: none;
+  border-right: none;
+}
+
+.list-group-item:first-child {
+  border-top: none;
+}
+
+.list-group-item:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 576px) {
+  .container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .display-5 {
+    font-size: 2rem;
+  }
+}

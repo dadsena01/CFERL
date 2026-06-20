@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.env
+lab.db
+uploads/*
+!uploads/.gitkeep
+*.pdf
+test-qr.png
+screenshots/
+start.sh

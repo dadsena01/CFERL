@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if tool else 'Add' }} Tool — Lab Tools{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">
+  <i class="bi bi-{{ 'pencil' if tool else 'plus-lg' }} me-2"></i>
+  {{ 'Edit' if tool else 'Add' }} Tool
+  {% if tool %}<span class="text-muted fs-6">({{ tool.asset_tag }})</span>{% endif %}
+</h2>
+
+<form method="POST" enctype="multipart/form-data" class="row g-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="col-md-6">
+    <label class="form-label">Tool Name <span class="text-danger">*</span></label>
+    <input type="text" name="name" class="form-control" required value="{{ tool.name if tool else '' }}">
+  </div>
+  <div class="col-md-6">
+    <label class="form-label">Category</label>
+    <select name="category_id" class="form-select">
+      <option value="">— None —</option>
+      {% for c in categories %}
+      <option value="{{ c.id }}" {% if tool and tool.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-12">
+    <label class="form-label">Description</label>
+    <textarea name="description" class="form-control" rows="2">{{ tool.description if tool else '' }}</textarea>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Quantity</label>
+    <input type="number" name="quantity" class="form-control" value="{{ tool.quantity if tool else '1' }}" min="1">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Location</label>
+    <input type="text" name="location" class="form-control" placeholder="e.g. Shelf A3" value="{{ tool.location if tool else '' }}">
+  </div>
+  <div class="col-md-5">
+    <label class="form-label">Condition</label>
+    <select name="condition" class="form-select">
+      {% for cond in ['New', 'Good', 'Fair', 'Needs Repair', 'Broken'] %}
+      <option value="{{ cond }}" {% if tool and tool.condition == cond %}selected{% endif %}>{{ cond }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Vendor</label>
+    <input type="text" name="vendor" class="form-control" value="{{ tool.vendor if tool else '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Purchase Date</label>
+    <input type="date" name="purchase_date" class="form-control" value="{{ tool.purchase_date if tool else '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Purchase Price</label>
+    <input type="number" name="purchase_price" class="form-control" step="0.01" value="{{ tool.purchase_price if tool else '' }}">
+  </div>
+  <div class="col-12">
+    <label class="form-label">Photo</label>
+    <input type="file" name="photo" class="form-control" accept="image/*">
+    {% if tool and tool.photo %}
+    <div class="mt-2">
+      <img src="{{ url_for('uploaded_file', filename=tool.photo) }}" class="img-thumbnail" style="max-height: 100px;">
+      <small class="text-muted ms-2">Current photo. Upload a new one to replace.</small>
+    </div>
+    {% endif %}
+  </div>
+  <div class="col-12 mt-4">
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check-lg me-1"></i>{{ 'Update' if tool else 'Create' }} Tool
+    </button>
+    <a href="{{ url_for('tool_list') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}
