@@ -694,7 +694,40 @@ def scan_page():
     return render_template("scan.html")
 
 
+@app.route("/debug")
+@login_required
+def debug_info():
+    import logging
+    logs = ""
+    try:
+        with open("/tmp/app.log") as f:
+            logs = f.read()
+    except Exception:
+        logs = "no log file"
+    db = get_db()
+    users = db.execute("SELECT id, username, role FROM users").fetchall()
+    tools_count = db.execute("SELECT COUNT(*) FROM tools").fetchone()[0]
+    return {
+        "users": [dict(u) for u in users],
+        "tools_count": tools_count,
+        "log": logs[-2000],
+        "db_path": DB_PATH,
+    }
 
+
+
+
+
+# ─── Error handling ──────────────────────────────────────────────────────────
+
+import logging
+logging.basicConfig(filename="/tmp/app.log", level=logging.ERROR,
+                    format="%(asctime)s %(levelname)s %(message)s")
+
+@app.errorhandler(500)
+def handle_500(e):
+    app.logger.error("500 on %s", request.url, exc_info=e)
+    return "Internal Server Error", 500
 
 
 # ─── Entry ───────────────────────────────────────────────────────────────────
