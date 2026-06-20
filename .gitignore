@@ -9,3 +9,4 @@ uploads/*
 test-qr.png
 screenshots/
 start.sh
+generate-*.py
