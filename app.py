@@ -81,12 +81,54 @@ def record_login_attempt():
 DB_PATH = os.path.join(app.root_path, "lab.db")
 
 
+class Database:
+    """Thin wrapper around sqlite3 or psycopg2 for multi-backend support."""
+
+    def __init__(self):
+        self._pg_url = os.environ.get("DATABASE_URL")
+        if self._pg_url:
+            import psycopg2
+            import psycopg2.extras
+            self.conn = psycopg2.connect(
+                self._pg_url,
+                cursor_factory=psycopg2.extras.RealDictCursor,
+            )
+            self.conn.autocommit = False
+        else:
+            self.conn = sqlite3.connect(DB_PATH)
+            self.conn.row_factory = sqlite3.Row
+            self.conn.execute("PRAGMA journal_mode=WAL")
+            self.conn.execute("PRAGMA foreign_keys=ON")
+
+    @property
+    def _is_pg(self):
+        return bool(self._pg_url)
+
+    def _fix(self, sql):
+        if not self._is_pg:
+            return sql
+        sql = sql.replace("?", "%s")
+        sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+        sql = sql.replace("REAL DEFAULT", "DOUBLE PRECISION DEFAULT")
+        sql = sql.replace("REAL,", "DOUBLE PRECISION,")
+        sql = sql.replace(" REAL ", " DOUBLE PRECISION ")
+        return sql
+
+    def execute(self, sql, params=None):
+        cur = self.conn.cursor()
+        cur.execute(self._fix(sql), params or ())
+        return cur
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA journal_mode=WAL")
-        g.db.execute("PRAGMA foreign_keys=ON")
+        g.db = Database()
     return g.db
 
 
@@ -99,20 +141,22 @@ def close_db(_exc):
 
 def init_db():
     db = get_db()
-    db.executescript("""
+    db.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'manager' CHECK(role IN ('admin', 'manager'))
-        );
-
+        )
+    """)
+    db.execute("""
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             description TEXT DEFAULT ''
-        );
-
+        )
+    """)
+    db.execute("""
         CREATE TABLE IF NOT EXISTS tools (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             asset_tag TEXT NOT NULL UNIQUE,
@@ -128,8 +172,9 @@ def init_db():
             photo TEXT DEFAULT '',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
-        );
-
+        )
+    """)
+    db.execute("""
         CREATE TABLE IF NOT EXISTS checkout_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tool_id INTEGER NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
@@ -137,11 +182,11 @@ def init_db():
             checkout_date TEXT NOT NULL,
             return_date TEXT,
             notes TEXT DEFAULT ''
-        );
+        )
     """)
     db.commit()
 
-    if not db.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
+    if not db.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()["cnt"]:
         db.execute(
             "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
             ("admin", generate_password_hash("admin123"), "admin"),
@@ -261,16 +306,16 @@ def logout():
 @login_required
 def dashboard():
     db = get_db()
-    total = db.execute("SELECT COUNT(*) FROM tools").fetchone()[0]
+    total = db.execute("SELECT COUNT(*) AS cnt FROM tools").fetchone()["cnt"]
     checked_out = db.execute(
-        "SELECT COUNT(DISTINCT tool_id) FROM checkout_log WHERE return_date IS NULL"
-    ).fetchone()[0]
+        "SELECT COUNT(DISTINCT tool_id) AS cnt FROM checkout_log WHERE return_date IS NULL"
+    ).fetchone()["cnt"]
     low_stock = db.execute(
-        "SELECT COUNT(*) FROM tools WHERE quantity <= 2"
-    ).fetchone()[0]
+        "SELECT COUNT(*) AS cnt FROM tools WHERE quantity <= 2"
+    ).fetchone()["cnt"]
     broken = db.execute(
-        "SELECT COUNT(*) FROM tools WHERE condition = 'Broken'"
-    ).fetchone()[0]
+        "SELECT COUNT(*) AS cnt FROM tools WHERE condition = 'Broken'"
+    ).fetchone()["cnt"]
 
     recent = db.execute("""
         SELECT cl.id, cl.borrower_name, cl.checkout_date, cl.return_date,
@@ -328,7 +373,7 @@ def category_new():
             get_db().commit()
             flash("Category created.", "success")
             return redirect(url_for("category_list"))
-        except sqlite3.IntegrityError:
+        except Exception:
             flash("Category already exists.", "danger")
     return render_template("category_form.html", category=None)
 
@@ -357,7 +402,7 @@ def category_edit(cid):
             db.commit()
             flash("Category updated.", "success")
             return redirect(url_for("category_list"))
-        except sqlite3.IntegrityError:
+        except Exception:
             flash("Category name already exists.", "danger")
     return render_template("category_form.html", category=cat)
 
@@ -576,9 +621,9 @@ def tool_checkout(tid):
         flash("Tool not found.", "danger")
         return redirect(url_for("tool_list"))
     active = db.execute(
-        "SELECT COUNT(*) FROM checkout_log WHERE tool_id = ? AND return_date IS NULL",
+        "SELECT COUNT(*) AS cnt FROM checkout_log WHERE tool_id = ? AND return_date IS NULL",
         (tid,),
-    ).fetchone()[0]
+    ).fetchone()["cnt"]
     if active >= tool["quantity"]:
         flash("All units of this tool are already checked out.", "danger")
         return redirect(url_for("tool_detail", tid=tid))
@@ -706,7 +751,7 @@ def debug_info():
         logs = "no log file"
     db = get_db()
     users = db.execute("SELECT id, username, role FROM users").fetchall()
-    tools_count = db.execute("SELECT COUNT(*) FROM tools").fetchone()[0]
+    tools_count = db.execute("SELECT COUNT(*) AS cnt FROM tools").fetchone()["cnt"]
     return {
         "users": [dict(u) for u in users],
         "tools_count": tools_count,
