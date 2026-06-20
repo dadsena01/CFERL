@@ -699,9 +699,9 @@ def scan_page():
 
 # ─── Entry ───────────────────────────────────────────────────────────────────
 
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+with app.app_context():
+    init_db()
 
 if __name__ == "__main__":
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-    with app.app_context():
-        init_db()
     app.run(host="0.0.0.0", port=5000, debug=False)
